@@ -11713,7 +11713,7 @@ MonoBehaviour:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 327483141}
-  m_Enabled: 0
+  m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: de0a9b23fa3784d75b3bdd0088f57e67, type: 3}
   m_Name: 
@@ -22997,6 +22997,10 @@ MonoBehaviour:
   terrain_manager_game_object: {fileID: 153530180}
   friends: []
   enemies: []
+  x: 0
+  z: 0
+  current_agent: 0
+  max_dist: 0
 --- !u!114 &458510688
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -83893,6 +83897,10 @@ MonoBehaviour:
   terrain_manager_game_object: {fileID: 153530180}
   friends: []
   enemies: []
+  x: 0
+  z: 0
+  current_agent: 0
+  max_dist: 0
 --- !u!114 &1471962244
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -101726,6 +101734,10 @@ MonoBehaviour:
   terrain_manager_game_object: {fileID: 153530180}
   friends: []
   enemies: []
+  x: 0
+  z: 0
+  current_agent: 0
+  max_dist: 0
 --- !u!114 &1902951897
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -102616,6 +102628,10 @@ MonoBehaviour:
   terrain_manager_game_object: {fileID: 153530180}
   friends: []
   enemies: []
+  x: 0
+  z: 0
+  current_agent: 0
+  max_dist: 0
 --- !u!114 &1993684193
 MonoBehaviour:
   m_ObjectHideFlags: 0
