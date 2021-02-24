@@ -79,6 +79,7 @@ namespace UnityStandardAssets.Vehicles.Car
             float rotated_x = agent.wanted_x * Mathf.Cos(current_angle) + agent.wanted_z * Mathf.Sin(current_angle);
             float rotated_z = agent.wanted_z * Mathf.Cos(current_angle) - agent.wanted_x * Mathf.Sin(current_angle);
             Vector3 wanted_position = new Vector3(lead_position.x + rotated_x, lead_position.y, lead_position.z + rotated_z);
+
             Debug.DrawLine(lead_position, wanted_position, Color.red);
 
             Vector3 direction = (wanted_position - current_position).normalized;
@@ -91,25 +92,30 @@ namespace UnityStandardAssets.Vehicles.Car
             Vector3 target_position = agent.GetTargetPosition(lead_position);
 
             Debug.Log("Acceleration: " + agent.GetAcceleration(max_dist, current_position, target_position));
+            Debug.Log("Steering: " + agent.GetSteering(current_position, target_position));
 
             if (is_to_the_right && is_to_the_front)
             {
                 steering = 0.5f;
+                //steering = agent.GetSteering(current_position, target_position);
                 acceleration = agent.GetAcceleration(max_dist, current_position, target_position);
             }
             else if (is_to_the_right && !is_to_the_front)
             {
                 steering = -0.5f;
+                //steering = -agent.GetSteering(current_position, target_position);
                 acceleration = -agent.GetAcceleration(max_dist, current_position, target_position);
             }
             else if (!is_to_the_right && is_to_the_front)
             {
                 steering = -0.5f;
+                //steering = -agent.GetSteering(current_position, target_position);
                 acceleration = agent.GetAcceleration(max_dist, current_position, target_position);
             }
             else if (!is_to_the_right && !is_to_the_front)
             {
                 steering = 0.5f;
+                //steering = agent.GetSteering(current_position, target_position);
                 acceleration = -agent.GetAcceleration(max_dist, current_position, target_position);
             }
 
@@ -192,6 +198,23 @@ namespace UnityStandardAssets.Vehicles.Car
             float travel_dist = Vector3.Distance(current_position, target_position);
             float acceleration = Math.Max(min_acceleration, speed_factor * (travel_dist / max_dist));
             return acceleration;
+        }
+
+        public float GetSteering(Vector3 current_position, Vector3 target_position)
+        {
+            // Linear steering based on angle towards target position.
+            Debug.DrawLine(current_position, target_position, Color.blue);
+
+            float steer_factor = 10.0f;
+            float min_steering = 0.05f;
+
+            float steering = steer_factor * (Vector3.Angle(current_position, target_position) / 180);
+
+            if (steering < min_steering)                                // If steering angle is less than min_steering we drive straight.
+            {
+                steering = 0.0f;
+            }
+            return steering;
         }
     }
 }
