@@ -80,8 +80,6 @@ namespace UnityStandardAssets.Vehicles.Car
             float rotated_z = agent.wanted_z * Mathf.Cos(current_angle) - agent.wanted_x * Mathf.Sin(current_angle);
             Vector3 wanted_position = new Vector3(lead_position.x + rotated_x, lead_position.y, lead_position.z + rotated_z);
 
-            Debug.DrawLine(lead_position, wanted_position, Color.red);
-
             Vector3 direction = (wanted_position - current_position).normalized;
             bool is_to_the_right = Vector3.Dot(direction, transform.right) > 0f;
             bool is_to_the_front = Vector3.Dot(direction, transform.forward) > 0f;
@@ -91,85 +89,45 @@ namespace UnityStandardAssets.Vehicles.Car
 
             Vector3 target_position = agent.GetTargetPosition(lead_position);
 
-            Debug.Log("Acceleration: " + agent.GetAcceleration(max_dist, current_position, target_position));
-            Debug.Log("Steering: " + agent.GetSteering(current_position, target_position));
+            Debug.DrawLine(lead_position, wanted_position, Color.red);
+            Debug.DrawLine(current_position, target_position, Color.blue);
 
             if (is_to_the_right && is_to_the_front)
             {
-                steering = 0.5f;
-                //steering = agent.GetSteering(current_position, target_position);
+                //steering = 0.5f;
+                steering = agent.GetSteering(current_car, direction);
                 acceleration = agent.GetAcceleration(max_dist, current_position, target_position);
             }
             else if (is_to_the_right && !is_to_the_front)
             {
-                steering = -0.5f;
-                //steering = -agent.GetSteering(current_position, target_position);
+                steering = -0.1f;
+                //steering = -agent.GetSteering(current_car, direction);
                 acceleration = -agent.GetAcceleration(max_dist, current_position, target_position);
             }
             else if (!is_to_the_right && is_to_the_front)
             {
-                steering = -0.5f;
-                //steering = -agent.GetSteering(current_position, target_position);
+                //steering = -0.5f;
+                steering = -agent.GetSteering(current_car, direction);
                 acceleration = agent.GetAcceleration(max_dist, current_position, target_position);
             }
             else if (!is_to_the_right && !is_to_the_front)
             {
-                steering = 0.5f;
-                //steering = agent.GetSteering(current_position, target_position);
+                steering = 0.1f;
+                //steering = agent.GetSteering(current_car, direction);
                 acceleration = -agent.GetAcceleration(max_dist, current_position, target_position);
             }
 
             m_Car.Move(steering, acceleration, acceleration, 0f);
 
-            /*Vector3 avg_pos = Vector3.zero;
-
-            foreach (GameObject friend in friends)
-            {
-                avg_pos += friend.transform.position;
-            }
-            avg_pos = avg_pos / friends.Length;
-            Vector3 direction = (avg_pos - transform.position).normalized;
-
-            bool is_to_the_right = Vector3.Dot(direction, transform.right) > 0f;
-            bool is_to_the_front = Vector3.Dot(direction, transform.forward) > 0f;
-
-            float steering = 0f;
-            float acceleration = 0;
-
-            if (is_to_the_right && is_to_the_front)
-            {
-                steering = 1f;
-                acceleration = 1f;
-            }
-            else if (is_to_the_right && !is_to_the_front)
-            {
-                steering = -1f;
-                acceleration = -1f;
-            }
-            else if (!is_to_the_right && is_to_the_front)
-            {
-                steering = -1f;
-                acceleration = 1f;
-            }
-            else if (!is_to_the_right && !is_to_the_front)
-            {
-                steering = 1f;
-                acceleration = -1f;
-            }
 
             // this is how you access information about the terrain
-            int i = terrain_manager.myInfo.get_i_index(transform.position.x);
-            int j = terrain_manager.myInfo.get_j_index(transform.position.z);
-            float grid_center_x = terrain_manager.myInfo.get_x_pos(i);
-            float grid_center_z = terrain_manager.myInfo.get_z_pos(j);
+            //int i = terrain_manager.myInfo.get_i_index(transform.position.x);
+            //int j = terrain_manager.myInfo.get_j_index(transform.position.z);
+            //float grid_center_x = terrain_manager.myInfo.get_x_pos(i);
+            //float grid_center_z = terrain_manager.myInfo.get_z_pos(j);
 
-            Debug.DrawLine(transform.position, new Vector3(grid_center_x, 0f, grid_center_z));
+            //Debug.DrawLine(transform.position, new Vector3(grid_center_x, 0f, grid_center_z));
 
-
-            // this is how you control the car
-            Debug.Log("Steering:" + steering + " Acceleration:" + acceleration);
-            m_Car.Move(steering, acceleration, acceleration, 0f);
-            //m_Car.Move(0f, -1f, 1f, 0f);*/
         }
     }
 
@@ -192,28 +150,31 @@ namespace UnityStandardAssets.Vehicles.Car
         public float GetAcceleration(float max_dist, Vector3 current_position, Vector3 target_position)
         {
             // Linear acceleration based on distance to target position.
-            float speed_factor = 10.0f;
-            float min_acceleration = 0.1f;
+            float speed_factor = 5.0f;
+            float min_acceleration = 0.0f;
 
             float travel_dist = Vector3.Distance(current_position, target_position);
-            float acceleration = Math.Max(min_acceleration, speed_factor * (travel_dist / max_dist));
-            return acceleration;
+            float acceleration = speed_factor * (travel_dist / max_dist);
+
+            //Debug.Log("Acceleration: " + acceleration);
+            return Math.Max(min_acceleration, acceleration);
         }
 
-        public float GetSteering(Vector3 current_position, Vector3 target_position)
+        public float GetSteering(GameObject car, Vector3 direction)
         {
             // Linear steering based on angle towards target position.
-            Debug.DrawLine(current_position, target_position, Color.blue);
+            float steer_factor = 1.0f;
+            float min_steering = 0.01f;
 
-            float steer_factor = 10.0f;
-            float min_steering = 0.05f;
-
-            float steering = steer_factor * (Vector3.Angle(current_position, target_position) / 180);
+            float steering = steer_factor * (Vector3.Angle(car.transform.forward, direction) / 180);
 
             if (steering < min_steering)                                // If steering angle is less than min_steering we drive straight.
             {
                 steering = 0.0f;
             }
+
+            //Debug.Log("Angle: " + Vector3.Angle(car.transform.forward, direction));
+            //Debug.Log("Steering: " + steering);
             return steering;
         }
     }
