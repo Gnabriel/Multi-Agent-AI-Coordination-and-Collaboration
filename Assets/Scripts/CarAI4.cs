@@ -100,7 +100,7 @@ namespace UnityStandardAssets.Vehicles.Car
             }
             else if (is_to_the_right && !is_to_the_front)
             {
-                steering = -0.1f;
+                steering = -0.3f;
                 //steering = -agent.GetSteering(current_car, direction);
                 acceleration = -agent.GetAcceleration(max_dist, current_position, target_position);
             }
@@ -112,7 +112,7 @@ namespace UnityStandardAssets.Vehicles.Car
             }
             else if (!is_to_the_right && !is_to_the_front)
             {
-                steering = 0.1f;
+                steering = 0.3f;
                 //steering = agent.GetSteering(current_car, direction);
                 acceleration = -agent.GetAcceleration(max_dist, current_position, target_position);
             }
