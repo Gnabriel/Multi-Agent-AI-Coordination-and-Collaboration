@@ -24,7 +24,8 @@ namespace UnityStandardAssets.Vehicles.Car
         float x_high;                                                                           // ...
         float z_low;                                                                            // ...
         float z_high;                                                                           // ...
-        bool DEBUG_ONCE = true;
+
+        float rrf_resolution = 20.0f;                                                           // Angle resolution of Rotating Rigid Formation Path Finding.       TODO: Update placeholder value.
 
         private CarController m_Car;                                                            // The car controller that we want to use.
         public GameObject terrain_manager_game_object;
@@ -36,7 +37,7 @@ namespace UnityStandardAssets.Vehicles.Car
 
         private void Start()
         {
-            
+
             m_Car = GetComponent<CarController>();                                              // Get the car controller
             terrain_manager = terrain_manager_game_object.GetComponent<TerrainManager>();
 
@@ -142,7 +143,7 @@ namespace UnityStandardAssets.Vehicles.Car
 
         private void FixedUpdate()
         {
-            
+
 
             GameObject current_car = m_Car.gameObject;
             this_position = current_car.transform.position;                                     // Update position to current.
@@ -155,7 +156,7 @@ namespace UnityStandardAssets.Vehicles.Car
                     Debug.Log("--- Enemy visible ---");
                 }
             }
-            
+
 
             // Execute your path here
             // ...
@@ -254,11 +255,29 @@ namespace UnityStandardAssets.Vehicles.Car
         }
 
 
-        public void RRFPathFinding(int formation_pattern, float[,] environment)
+        public void RRFPathFinding(List<Vector3> formation_pattern, float[,] environment)
         {
             // Rotating Rigid Formation Path Finding.
+            List<RigidFormation> possible_rigid_formations = GetRotatedRigidFormations(formation_pattern, rrf_resolution);
+            foreach (var rigid_formation in possible_rigid_formations)
+            {
+
+            }
         }
 
+
+        public List<RigidFormation> GetRotatedRigidFormations(List<Vector3> formation_pattern, float rotation_resolution)
+        {
+            // Returns all possible rotations of a rigid formation given an angle resolution of the rotations.
+            List<RigidFormation> rotated_rigid_formations = new List<RigidFormation>();                     // List where the rotated formations will be saved.
+            rotated_rigid_formations.Add(new RigidFormation(formation_pattern);                             // Create the first unrotated formation.
+
+            for (int angle = 0; angle <= 360; angle += rotation_resolution)                                 // Create all possible rotations of the rigid formation.
+            {
+                // TODO: ######################################################################## FORTSÄTT HÄR ################################################################################################
+            }
+            return rotated_rigid_formations;
+        }
 
         public void OnGUI()
         {
@@ -297,6 +316,36 @@ namespace UnityStandardAssets.Vehicles.Car
                 }
             }
             // ----- /Draw scores in a grid fashion -----
+        }
+    }
+
+
+    public class RigidFormation
+    {
+        public int nr_of_agents;
+        public List<Vector3> agent_positions;
+
+        public RigidFormation(List<Vector3> agent_positions)
+        {
+            // Input: Positions of the agents sorted, with the first one being the leader.
+            this.nr_of_agents = agent_positions.Count;
+            this.agent_positions = agent_positions;
+        }
+
+        public List<Vector3> MoveFormation(Vector3 new_leader_position)
+        {
+            Vector3 old_leader_position = this.agent_positions[0];
+            Vector3 position_difference = new_leader_position - old_leader_position;
+            for (int i = 0; i < nr_of_agents; i++)
+            {
+                agent_positions[i] += position_difference;
+            }
+            return this.agent_positions;                                                                        // TODO: To debug, check that this.agent_positions[0] == new_leader_position.
+        }
+
+        public Vector3 GetLeaderPosition()
+        {
+            return this.agent_positions[0];
         }
     }
 }
