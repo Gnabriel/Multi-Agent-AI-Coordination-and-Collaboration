@@ -26,7 +26,7 @@ namespace UnityStandardAssets.Vehicles.Car
         float z_low;                                                                            // ...
         float z_high;                                                                           // ...
 
-        int rrf_resolution = 20;                                                                // Angle resolution in degrees of Rotating Rigid Formation Path Finding.       TODO: Update placeholder value.
+        int rrf_resolution = 45;                                                                // Angle resolution in degrees of Rotating Rigid Formation Path Finding.       TODO: Update placeholder value.
 
         private CarController m_Car;                                                            // The car controller that we want to use.
         public GameObject terrain_manager_game_object;
@@ -68,11 +68,6 @@ namespace UnityStandardAssets.Vehicles.Car
             GameObject current_target = GetTarget();                                            // Get the current target, which is the next target the agents will try to destroy.
             Vector3 current_target_position = current_target.transform.position;                // Position of current target.
             // ----- /Initializations -----
-
-
-            int target_pos_i = terrain_manager.myInfo.get_i_index(current_target_position[0]);
-            int target_pos_j = terrain_manager.myInfo.get_j_index(current_target_position[2]);
-            Debug.Log("Target grid position: i=" + target_pos_i + ", j=" + target_pos_j);
 
 
             // ----- Assign an ID to the current car -----
@@ -139,6 +134,55 @@ namespace UnityStandardAssets.Vehicles.Car
                 weighted_positions = friends[0].GetComponent<CarAI5>().weighted_positions;
             }
             // ----- /Build weighted position matrix -----
+
+            if (DEBUG && this_id == 0)
+            {
+                // ----- Print current target position in i,j grid -----
+                //int target_pos_i = terrain_manager.myInfo.get_i_index(current_target_position[0]);
+                //int target_pos_j = terrain_manager.myInfo.get_j_index(current_target_position[2]);
+                //Debug.Log("Target grid position: i=" + target_pos_i + ", j=" + target_pos_j);
+                // ----- /Print current target position in i,j grid -----
+
+
+                // ----- Visualize the Rotated Rigid Formations -----
+                float position_1_x = terrain_manager.myInfo.get_x_pos(5);                       // Coordinates (5,9).
+                float position_1_z = terrain_manager.myInfo.get_z_pos(9);
+                Vector3 position_1 = new Vector3(position_1_x, 0.0f, position_1_z);
+                float position_2_x = terrain_manager.myInfo.get_x_pos(6);                       // Coordinates (6,9).
+                float position_2_z = terrain_manager.myInfo.get_z_pos(9);
+                Vector3 position_2 = new Vector3(position_2_x, 0.0f, position_2_z);
+                float position_3_x = terrain_manager.myInfo.get_x_pos(7);                       // Coordinates (7,9).
+                float position_3_z = terrain_manager.myInfo.get_z_pos(9);
+                Vector3 position_3 = new Vector3(position_3_x, 0.0f, position_3_z);
+
+                //Debug.Log(position_1);
+                //Debug.Log(position_2);
+                //Debug.Log(position_3);
+
+                List<Vector3> formation_pattern = new List<Vector3>();
+                formation_pattern.Add(position_1);
+                formation_pattern.Add(position_2);
+                formation_pattern.Add(position_3);
+
+                List<RigidFormation> possible_rigid_formations = GetRotatedRigidFormations(formation_pattern, rrf_resolution);
+
+                //Debug.Log("---------------------------------------------------");
+
+                foreach (RigidFormation rf in possible_rigid_formations)
+                {
+                    //Debug.Log("--- Formation:");
+
+                    Vector3 leader = rf.agent_positions[0];
+                    foreach (Vector3 agent_pos in rf.agent_positions)
+                    {
+                        //Debug.Log(agent_pos);
+
+                        //Color color = Color.magenta;
+                        //Debug.DrawLine(leader, agent_pos, color, float.PositiveInfinity);
+                    }
+                }
+                // ----- /Visualize the Rotated Rigid Formations -----
+            }
         }
 
 
@@ -150,44 +194,15 @@ namespace UnityStandardAssets.Vehicles.Car
 
             if (DEBUG)
             {
-                float position_1_x = terrain_manager.myInfo.get_x_pos(1);                       // Coordinates (1,1).
-                float position_1_z = terrain_manager.myInfo.get_z_pos(1);
-                Vector3 position_1 = new Vector3(position_1_x, 0.0f, position_1_z);
-                float position_2_x = terrain_manager.myInfo.get_x_pos(2);                       // Coordinates (2,1).
-                float position_2_z = terrain_manager.myInfo.get_z_pos(1);
-                Vector3 position_2 = new Vector3(position_2_x, 0.0f, position_2_z);
-                float position_3_x = terrain_manager.myInfo.get_x_pos(3);                       // Coordinates (3,1).
-                float position_3_z = terrain_manager.myInfo.get_z_pos(1);
-                Vector3 position_3 = new Vector3(position_3_x, 0.0f, position_3_z);
-
-                List<Vector3> formation_pattern = new List<Vector3>();
-                formation_pattern.Add(position_1);
-                formation_pattern.Add(position_2);
-                formation_pattern.Add(position_3);
-
-                List<RigidFormation> possible_rigid_formations = GetRotatedRigidFormations(formation_pattern, rrf_resolution);
-
-                foreach (RigidFormation rf in possible_rigid_formations)
-                {
-                    Vector3 leader = rf.agent_positions[0];
-                    foreach (Vector3 agent_pos in rf.agent_positions)
-                    {
-                        Color color = Color.magenta;
-                        Debug.Log(agent_pos);
-                        Debug.DrawLine(leader, agent_pos, color, float.PositiveInfinity);
-                    }
-                }
-
-
                 // ----- Log to console when current agent can see an enemy -----
-                foreach (GameObject enemy in enemies)
-                {
-                    Vector3 enemy_position = enemy.transform.position;
-                    if (CheckInSight(this_position, enemy_position))
-                    {
-                        Debug.Log("--- Enemy visible ---");
-                    }
-                }
+                //foreach (GameObject enemy in enemies)
+                //{
+                //    Vector3 enemy_position = enemy.transform.position;
+                //    if (CheckInSight(this_position, enemy_position))
+                //    {
+                //        Debug.Log("--- Enemy visible ---");
+                //    }
+                //}
                 // ----- /Log to console when current agent can see an enemy -----
             }
 
@@ -297,9 +312,26 @@ namespace UnityStandardAssets.Vehicles.Car
         {
             // Rotating Rigid Formation Path Finding.
             List<RigidFormation> possible_rigid_formations = GetRotatedRigidFormations(formation_pattern, rrf_resolution);
-            foreach (var rigid_formation in possible_rigid_formations)
+            bool move_successful;
+            foreach (var rf in possible_rigid_formations)                                                                   // Iterate over each possible formation rotation.
             {
-
+                float x = x_low;                                                                                            // Set the starting position to top left.
+                float z = z_high;                                                                                           // ...
+                move_successful = rf.MoveFormation(new Vector3(x, 0.0f, z), CheckObstacle);                                 // Move formation to top left position.
+                for (int i = 0; i < z_high + rf.GetFormationHeight(); i++)                                                  // Iterate over map height + formation height.
+                {
+                    for (int j = 0; j < x_high + rf.GetFormationWidth(); j++)                                               // Iterate over map width + formation width.
+                    {
+                        move_successful = rf.MoveFormation(new Vector3(x, 0.0f, z), CheckObstacle);                         // Move formation.
+                        if (move_successful)
+                        {
+                            rf_survivability = rf.GetSurvivability(weighted_positions);                                     // Get the formation survivability at current position.
+                        }
+                        x += 1.0f;                                                                                          // Add one step to the right.
+                    }
+                    x = x_low;                                                                                              // Reset x to leftmost position.
+                    z -= 1.0f;                                                                                              // Shift down one row.
+                }
             }
         }
 
@@ -308,16 +340,27 @@ namespace UnityStandardAssets.Vehicles.Car
         {
             // Returns all possible rotations of a rigid formation given an angle resolution of the rotations in degrees.
             List<RigidFormation> rotated_rigid_formations = new List<RigidFormation>();                                             // List where the rotated formations will be saved.
-            //rotated_rigid_formations.Add(new RigidFormation(formation_pattern);                                                     // Create the first unrotated formation.
-            
-            for (int angle = 0; angle <= 360; angle += rotation_resolution)                                                         // Create all possible rotations of the rigid formation.
+                                                                                                                                    //rotated_rigid_formations.Add(new RigidFormation(formation_pattern);                                                     // Create the first unrotated formation.
+
+            //Debug.Log("--- Original formation:");
+            for (int i = 0; i < formation_pattern.Count; i++)                                                                       // Loop over positions in the pattern.
             {
+                //Debug.Log(formation_pattern[i]);
+            }
+
+            for (int angle = 0; angle < 360; angle += rotation_resolution)                                                          // Create all possible rotations of the rigid formation.
+            {
+                //Debug.Log("--- New formation:");
+
                 Vector3 pivot = formation_pattern[0];                                                                               // Pivot where the pattern will rotate around.
                 for (int i = 0; i < formation_pattern.Count; i++)                                                                   // Loop over positions in the pattern.
                 {
                     formation_pattern[i] = RotateAroundPoint(formation_pattern[i], pivot, Quaternion.Euler(0, angle, 0));           // Rotate with angle around the y-axis.
-                    rotated_rigid_formations.Add(new RigidFormation(formation_pattern));                                            // Create RigidFormation objects from the patterns.
+
+                    //Debug.Log(formation_pattern[i]);
                 }
+                List<Vector3> new_formation_pattern = new List<Vector3>(formation_pattern);                                         // Clone the formation pattern so it is not changed next iteration.
+                rotated_rigid_formations.Add(new RigidFormation(new_formation_pattern));                                            // Create RigidFormation objects from the patterns.
             }
             return rotated_rigid_formations;
         }
@@ -325,7 +368,7 @@ namespace UnityStandardAssets.Vehicles.Car
 
         public Vector3 RotateAroundPoint(Vector3 point, Vector3 pivot, Quaternion angle) {
             // Rotates a point around another point as pivot.
-            return angle * (point - pivot) + pivot;
+            return angle * (point - pivot) + pivot;                                                                                 // TODO: Check how this handles rotations for different angles.
         }
 
 
@@ -339,11 +382,58 @@ namespace UnityStandardAssets.Vehicles.Car
         void OnDrawGizmos()
         {
             // Debugging in Scene view.
-            Handles.Label(this_position, "ID: " + this_id);
-
-            // ----- Draw scores in a grid fashion -----
-            if (this_id == 0)
+            if (DEBUG && this_id == 0)
             {
+                Handles.Label(this_position, "ID: " + this_id);                                                                     // Show ID of the cars.
+
+
+                Gizmos.DrawSphere(new Vector3(x_low, 10.0f, z_high), 5);                                                          // Visualize a point.
+
+
+                // ----- Create and visualize Rotated Rigid Formations -----
+                //float position_1_x = terrain_manager.myInfo.get_x_pos(5);                       // Coordinates (5,9).
+                //float position_1_z = terrain_manager.myInfo.get_z_pos(9);
+                //Vector3 position_1 = new Vector3(position_1_x, 0.0f, position_1_z);
+                //float position_2_x = terrain_manager.myInfo.get_x_pos(6);                       // Coordinates (6,9).
+                //float position_2_z = terrain_manager.myInfo.get_z_pos(9);
+                //Vector3 position_2 = new Vector3(position_2_x, 0.0f, position_2_z);
+                //float position_3_x = terrain_manager.myInfo.get_x_pos(7);                       // Coordinates (7,9).
+                //float position_3_z = terrain_manager.myInfo.get_z_pos(9);
+                //Vector3 position_3 = new Vector3(position_3_x, 0.0f, position_3_z);
+
+                //List<Vector3> formation_pattern = new List<Vector3>();
+                //formation_pattern.Add(position_1);
+                //formation_pattern.Add(position_2);
+                //formation_pattern.Add(position_3);
+
+                //Gizmos.color = Color.blue;
+                //GUIStyle style_original = new GUIStyle();
+                //style_original.normal.textColor = Color.blue;
+                //Gizmos.DrawSphere(position_1, 1);
+                //Handles.Label(position_1 + Vector3.back * 3 + Vector3.left * 6, "" + position_1, style_original);
+                //Gizmos.DrawSphere(position_2, 1);
+                //Handles.Label(position_2 + Vector3.back * 3 + Vector3.left * 6, "" + position_2, style_original);
+                //Gizmos.DrawSphere(position_3, 1);
+                //Handles.Label(position_3 + Vector3.back * 3 + Vector3.left * 6, "" + position_3, style_original);
+
+                //List<RigidFormation> possible_rigid_formations = GetRotatedRigidFormations(formation_pattern, rrf_resolution);
+
+                //foreach (RigidFormation rf in possible_rigid_formations)
+                //{
+                //    Vector3 leader = rf.agent_positions[0];
+                //    int f_index = 0;
+                //    foreach (Vector3 agent_pos in rf.agent_positions)
+                //    {
+                //        Gizmos.color = Color.magenta;
+                //        Gizmos.DrawSphere(agent_pos, 1);
+                //        Handles.Label(agent_pos + Vector3.back + Vector3.left * 6, "" + f_index + ". " + agent_pos);
+                //        f_index++;
+                //    }
+                //}
+                // ----- /Visualize the Rotated Rigid Formations -----
+
+
+                // ----- Draw scores in a grid fashion -----
                 int x_N = terrain_manager.myInfo.x_N;
                 int z_N = terrain_manager.myInfo.z_N;
                 Vector3 position;
@@ -364,8 +454,8 @@ namespace UnityStandardAssets.Vehicles.Car
                         //Handles.Label(position, "" + i + "," + j, style);
                     }
                 }
+                // ----- /Draw scores in a grid fashion -----
             }
-            // ----- /Draw scores in a grid fashion -----
         }
     }
 
@@ -380,22 +470,88 @@ namespace UnityStandardAssets.Vehicles.Car
             // Input: Positions of the agents sorted, with the first one being the leader.
             this.nr_of_agents = agent_positions.Count;
             this.agent_positions = agent_positions;
+            agent_positions.Sort((x, y) => {                                                                    // Sort by x-position first and then by y-position.     TODO: Check if it works.
+                var ret = x[0].CompareTo(y[0]);                                                                 // TODO: Is sorting necessary?
+                if (ret == 0) ret = x[2].CompareTo(y[2]);
+                return ret;
+            });
         }
 
-        public List<Vector3> MoveFormation(Vector3 new_leader_position)
+        public bool MoveFormation(Vector3 new_leader_position, Func<float,float,bool>CheckObstacle)             // TODO: To debug, check that this.agent_positions[0] == new_leader_position.
         {
+            // Moves the formation. Returns true if successful and false if an agent ends up in an obstacle.
+            // Input: New position of leader, function to check for collision at a point.
             Vector3 old_leader_position = this.agent_positions[0];
             Vector3 position_difference = new_leader_position - old_leader_position;
             for (int i = 0; i < nr_of_agents; i++)
             {
-                agent_positions[i] += position_difference;
+                this.agent_positions[i] += position_difference;
+                if (CheckObstacle(this.agent_positions[i][0], this.agent_positions[i][2]))
+                {
+                    return false;
+                }
             }
-            return this.agent_positions;                                                                        // TODO: To debug, check that this.agent_positions[0] == new_leader_position.
+            return true;                                                                        
         }
 
         public Vector3 GetLeaderPosition()
         {
             return this.agent_positions[0];
         }
+
+        public float GetFormationWidth()
+        {
+            // Returns the horisontal size of the formation.
+            float x_min = float.PositiveInfinity;
+            float x_max = float.NegativeInfinity;
+            foreach (Vector3 agent_pos in this.agent_positions)
+            {
+                x_min = Math.Min(x_min, agent_pos[0]);
+                x_max = Math.Max(x_max, agent_pos[0]);
+            }
+            return x_max - x_min;
+        }
+
+        public float GetFormationHeight()
+        {
+            // Returns the vertical size of the formation.
+            float z_min = float.PositiveInfinity;
+            float z_max = float.NegativeInfinity;
+            foreach (Vector3 agent_pos in this.agent_positions)
+            {
+                z_min = Math.Min(z_min, agent_pos[2]);
+                z_max = Math.Max(z_max, agent_pos[2]);
+            }
+            return z_max - z_min;
+        }
+
+        public float GetSurvivability(float[,] weighted_positions)
+        {
+            // Returns the survivability of the formation at their current positions.
+            // Input: Grid with survivability score at each position.
+            float formation_survivability = 0;
+            foreach (Vector3 agent_pos in this.agent_positions)
+            {
+                formation_survivability += weighted_positions[agent_pos[0], agent_pos[2]];                          // TODO: Change from addition to something else (?).
+            }
+            return formation_survivability;
+        }
+    }
+
+
+    public class RigidFormationGraph
+    {
+        public RigidFormationGraph()
+        {
+        }
+
+        public void AddEdge(int v1, int v2, int weight)
+        {
+
+        }
+
+        public abstract IEnumerable<int> GetAdjacentVertices(int v);
+
+        public abstract int GetEdgeWeight(int v1, int v2);
     }
 }
