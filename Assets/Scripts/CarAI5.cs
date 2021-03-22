@@ -35,7 +35,6 @@ namespace UnityStandardAssets.Vehicles.Car
         public GameObject[] enemies;
         // ----- /Initializations -----
 
-
         private void Start()
         {
 
@@ -185,7 +184,6 @@ namespace UnityStandardAssets.Vehicles.Car
             }
         }
 
-
         private void FixedUpdate()
         {
             GameObject current_car = m_Car.gameObject;
@@ -205,11 +203,6 @@ namespace UnityStandardAssets.Vehicles.Car
                 //}
                 // ----- /Log to console when current agent can see an enemy -----
             }
-
-
-
-
-
 
             // Execute your path here
             // ...
@@ -265,7 +258,6 @@ namespace UnityStandardAssets.Vehicles.Car
             //m_Car.Move(0f, -1f, 1f, 0f);
         }
 
-
         public bool CheckObstacle(float x, float z)
         {
             // Returns true if there is an obstacle at given position, otherwise false.
@@ -280,7 +272,6 @@ namespace UnityStandardAssets.Vehicles.Car
                 return false;
             }
         }
-
 
         public bool CheckInSight(Vector3 position_1, Vector3 position_2)
         {
@@ -300,13 +291,11 @@ namespace UnityStandardAssets.Vehicles.Car
             }
         }
 
-
         public GameObject GetTarget()
         {
             // Return the currently best target.
             return enemies[0];
         }
-
 
         public void RRFPathFinding(List<Vector3> formation_pattern, float[,] environment)
         {
@@ -318,18 +307,19 @@ namespace UnityStandardAssets.Vehicles.Car
             float current_rotation = 0.0f;                                                                                  // Indicates current rotation angle.
             float survivability;                                                                                            // Survivability score of current formation at current position.
             RFNode node;
-            RFGraph rf_graph;
+            RFGraph rf_graph;                                                                                               
+            int rf_node_nr;                                                                                                 // Unique number of each node for each rf graph.
             int num_vertices = weighted_positions.Length;                                                                   // Number of cells in the weighted grid.
             float formation_height;                                                                                         // Height of the current formation.
             float formation_width;                                                                                          // Width of the current formation.
             foreach (RigidFormation rf in possible_rigid_formations)                                                        // Iterate over each possible formation rotation.
             {
-                rf_graph = new RFGraph(num_vertices)                                                                        // Initialize a graph with same size as the weighted grid.
+                rf_graph = new RFGraph(num_vertices);                                                                       // Initialize a graph with same size as the weighted grid.
+                rf_node_nr = 0;
                 x = x_low;                                                                                                  // Set the starting position to top left.
                 z = z_high;                                                                                                 // ...
                 formation_height = rf.GetFormationHeight();
                 formation_width = rf.GetFormationWidth();
-                move_successful = rf.MoveFormation(new Vector3(x, 0.0f, z), CheckObstacle);                                 // Move formation to top left position.
                 for (int i = 0; i < z_high + formation_height; i++)                                                         // Iterate over map height + formation height.
                 {
                     for (int j = 0; j < x_high + formation_width; j++)                                                      // Iterate over map width + formation width.
@@ -338,21 +328,29 @@ namespace UnityStandardAssets.Vehicles.Car
                         if (move_successful)
                         {
                             survivability = rf.GetSurvivability(weighted_positions);                                        // Get the formation survivability at current position.
-                            node = new RFNode(x, z, current_rotation, survivability);                                       // Create a node for current position and survivability.
-                            // ##################################################### behövs node? ########################################################
+                            node = new RFNode(x, z, current_rotation, survivability, rf_node_nr);                           // Create a node for current position and survivability.
+                            ConnectNeighbors(rf_graph, node, current_rotation);                                             // Connect node with previously created neighbors in the rf_graph.
+                            rf_node_nr++;
                         }
                         x += 1.0f;                                                                                          // Add one step to the right.
                     }
                     x = x_low;                                                                                              // Reset x to leftmost position.
                     z -= 1.0f;                                                                                              // Shift down one row.
                 }
-                current_rotation += rrf_resolution;
+                current_rotation += rrf_resolution;                                                                         // Update to next rotation.
 
                 // Link every node in rf_graph with its adjacent vertices and set the weight of every outgoing edge to be the adjacent vertex's TSC.
+                //foreach (KeyValuePair<(float, float, float), RFNode> kvp in RFNode.node_dictionary)
+                //{
+                //    float x = kvp.Key[0];
+                //    float z = kvp.Key[1];
+                //    float rotation = kvp.Key[2];
+                //    RFNode node = kvp.Value;
+                //    rf_graph.AddEdge();
+                //}
                 // ############################################## FORTSÄTT HÄR ########################################################
             }
         }
-
 
         public List<RigidFormation> GetRotatedRigidFormations(List<Vector3> formation_pattern, int rotation_resolution)
         {
@@ -383,19 +381,35 @@ namespace UnityStandardAssets.Vehicles.Car
             return rotated_rigid_formations;
         }
 
-
         public Vector3 RotateAroundPoint(Vector3 point, Vector3 pivot, Quaternion angle) {
             // Rotates a point around another point as pivot.
             return angle * (point - pivot) + pivot;                                                                                 // TODO: Check how this handles rotations for different angles.
         }
 
+        public void ConnectNeighbors(RFGraph rf_graph, RFNode node, float rotation)
+        {
+            // Above:   (node.x - 1, node.z - 1), (node.x, node.z - 1), (node.x + 1, node.z - 1);
+            // Sides:   (node.x - 1, node.z), (node.x + 1, node.z);
+            // Below:   (node.x - 1, node.z + 1), (node.x, node.z + 1), (node.x + 1, node.z + 1);
+            (float x, float z)[] up_left_positions = new (float, float)[] { (node.x - 1, node.z - 1), (node.x, node.z - 1), (node.x + 1, node.z - 1), (node.x - 1, node.z) };
+            for (float, float) position in up_left_positions
+            {
+                (float, float, float) key = (position[0], position[1], rotation);                                                   // Position including rotation as key in dictionary.
+                if (RFNode.node_dictionary.TryGetValue(key, out RFNode adj_node))                                                   // Checks if there is a neighbor at this position.
+                {
+                    // "node" and "adj_node" are neighbours.
+                    // Add edges between them with the opposite node's survivability score as edge weight.
+                    rf_graph.AddEdge(node.rf_node_nr, adj_node.rf_node_nr, adj_node.survivability);
+                    rf_graph.AddEdge(adj_node.rf_node_nr, node.rf_node_nr, node.survivability);
+                }
+            }
+        }
 
         public void OnGUI()
         {
             // Debugging in Game view.
             //Handles.Label(this_position, "ID: " + this_id);
         }
-
 
         void OnDrawGizmos()
         {
@@ -404,9 +418,7 @@ namespace UnityStandardAssets.Vehicles.Car
             {
                 Handles.Label(this_position, "ID: " + this_id);                                                                     // Show ID of the cars.
 
-
-                Gizmos.DrawSphere(new Vector3(x_low, 10.0f, z_high), 5);                                                          // Visualize a point.
-
+                Gizmos.DrawSphere(new Vector3(x_low, 10.0f, z_high), 5);                                                            // Visualize a point.
 
                 // ----- Create and visualize Rotated Rigid Formations -----
                 //float position_1_x = terrain_manager.myInfo.get_x_pos(5);                       // Coordinates (5,9).
@@ -561,23 +573,21 @@ namespace UnityStandardAssets.Vehicles.Car
     {
         private static Dictionary<(float, float, float), RFNode> node_dictionary = new Dictionary<(float, float, float), RFNode>();     // Dictionary of all nodes with (x, z, rotation) tuple as key.
         private static float cell_size = 1.0f;                                              // Size of the cells in the grid. Should correspond to the grid resolution.
-        private float x;
-        private float z;
-        private float rotation;
-        private float survivability;                                                        // Measure of team survivability at this position.
+        public float x;
+        public float z;
+        public float rotation;
+        public float survivability;                                                         // Measure of team survivability at this position.
+        public float rf_node_nr;                                                        
+        private List<RFNode> neighbors = new List<RFNode>();                                // List of adjacent non-obstacle nodes.
 
-        public RFNode(float x, float z, float rotation, float survivability)
+        public RFNode(float x, float z, float rotation, float survivability, float rf_node_nr)
         {
             this.x = x;
             this.z = z;
             this.rotation = rotation;
             this.survivability = survivability;
+            this.rf_node_nr = rf_node_nr;
             node_dictionary.Add((this.x, this.z, this.rotation), this);                     // Add this node to the dictionary.
-        }
-
-        public float GetSurvivability()
-        {
-            return this.survivability;
         }
 
         public bool CheckAdjacent(RFNode node)
@@ -591,6 +601,11 @@ namespace UnityStandardAssets.Vehicles.Car
                 }
             }
             return false;
+        }
+
+        public void AddNeighbor(RFNode adjacent_node)
+        {
+            this.neighbors.Add(adjacent_node);
         }
 
         public static RFNode GetNode(float x, float z, float rotation)
