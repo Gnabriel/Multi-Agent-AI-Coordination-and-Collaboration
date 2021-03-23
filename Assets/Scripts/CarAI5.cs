@@ -300,35 +300,44 @@ namespace UnityStandardAssets.Vehicles.Car
         public void RRFPathFinding(List<Vector3> formation_pattern, float[,] environment)
         {
             // Rotating Rigid Formation Path Finding.
-            List<RigidFormation> possible_rigid_formations = GetRotatedRigidFormations(formation_pattern, rrf_resolution);
+            List<List<Vector3>> possible_formation_patterns = GetRotatedFormationPatterns(formation_pattern, rrf_resolution);
             bool move_successful;
             float x;
             float z;
             float current_rotation = 0.0f;                                                                                  // Indicates current rotation angle.
             float survivability;                                                                                            // Survivability score of current formation at current position.
             RFNode node;
-            RFGraph rf_graph;                                                                                               
+            RFGraph rf_graph;
+            List<RFGraph> rf_graph_list = new List<RFGraph>();
             int rf_node_nr;                                                                                                 // Unique number of each node for each rf graph.
             int num_vertices = weighted_positions.Length;                                                                   // Number of cells in the weighted grid.
             float formation_height;                                                                                         // Height of the current formation.
             float formation_width;                                                                                          // Width of the current formation.
-            foreach (RigidFormation rf in possible_rigid_formations)                                                        // Iterate over each possible formation rotation.
+            foreach (List<Vector3> formation_pattern in possible_formation_patterns)                                        // Iterate over each possible formation rotation.
             {
-                rf_graph = new RFGraph(num_vertices);                                                                       // Initialize a graph with same size as the weighted grid.
+                rf_graph = new RFGraph(num_vertices, current_rotation);                                                     // Initialize a graph with same size as the weighted grid.
                 rf_node_nr = 0;
                 x = x_low;                                                                                                  // Set the starting position to top left.
                 z = z_high;                                                                                                 // ...
+                RigidFormation rf = new RigidFormation(formation_pattern);                                                  // Create a RigidFormation object of the formation pattern.
                 formation_height = rf.GetFormationHeight();
                 formation_width = rf.GetFormationWidth();
                 for (int i = 0; i < z_high + formation_height; i++)                                                         // Iterate over map height + formation height.
                 {
                     for (int j = 0; j < x_high + formation_width; j++)                                                      // Iterate over map width + formation width.
                     {
-                        move_successful = rf.MoveFormation(new Vector3(x, 0.0f, z), CheckObstacle);                         // Move formation.
-                        if (move_successful)
+                        rf = MoveFormation(rf, new Vector3(x, 0.0f, z));                                                    // Move formation and create a new RigidFormation object.
+                        if (rf is not null)                                                                                 // Check that the move was possible (i.e no agent hit an obstacle).
                         {
                             survivability = rf.GetSurvivability(weighted_positions);                                        // Get the formation survivability at current position.
-                            node = new RFNode(x, z, current_rotation, survivability, rf_node_nr);                           // Create a node for current position and survivability.
+                            node = new RFNode(rf_graph, x, z, current_rotation, survivability, rf_node_nr);                 // Create a node for current position and survivability.
+                            // ################################# TODO: Keep RFNode or not? ###########################################################################
+                            rf_graph.AddRigidFormation(rf);
+
+                            // #################### FORTSÄTT HÄR! NU LÄGGS rf TILL I rf_graph ISTÄLLET FÖR RFNODES ##############################
+                            // #################### ÄNDRA ConnectNeighbors SÅ ATT DEN TAR HÄNSYN TILL DET ISTÄLLET ##############################
+
+                            // Link nodes in rf_graph with its adjacent vertices and set the weight of every outgoing edge to be the adjacent vertex's TSC.
                             ConnectNeighbors(rf_graph, node, current_rotation);                                             // Connect node with previously created neighbors in the rf_graph.
                             rf_node_nr++;
                         }
@@ -338,52 +347,61 @@ namespace UnityStandardAssets.Vehicles.Car
                     z -= 1.0f;                                                                                              // Shift down one row.
                 }
                 current_rotation += rrf_resolution;                                                                         // Update to next rotation.
+                rf_graph_list.Add(rf_graph);                                                                                // Add the current graph to list of graphs that will later be connected.
+            }
 
-                // Link every node in rf_graph with its adjacent vertices and set the weight of every outgoing edge to be the adjacent vertex's TSC.
-                //foreach (KeyValuePair<(float, float, float), RFNode> kvp in RFNode.node_dictionary)
-                //{
-                //    float x = kvp.Key[0];
-                //    float z = kvp.Key[1];
-                //    float rotation = kvp.Key[2];
-                //    RFNode node = kvp.Value;
-                //    rf_graph.AddEdge();
-                //}
-                // ############################################## FORTSÄTT HÄR ########################################################
+            // Mutually link vertices from rf_graph[i] containing joint agents that are also placed on the same positions in vertices from rf_graph[i+1].
+            for (int i = 0; i < rf_graph_list.Count; i++)                                                                   // Iterate over each rf_graph.
+            {
+                foreach (KeyValuePair<(float, float, float), RFNode> kvp in rf_graph_list[i].node_dictionary)
+                {
+                    (float, float, float) same_position = (kvp.Key.Item1, kvp.Key.Item2, rf_graph_list[i + 1].rotation);    // Same 
+                    if (rf_graph_list[i + 1].node_dictionary.ContainsKey(kvp.Key))
+                    {
+                        rf_graph_list[i].AddEdge(blabla rf_graph_list[i + 1]);
+                        rf_graph_list[i + 1].AddEdge(blabla rf_graph_list[i]);
+                    }
+                }
             }
         }
 
-        public List<RigidFormation> GetRotatedRigidFormations(List<Vector3> formation_pattern, int rotation_resolution)
+        public List<RigidFormation> GetRotatedFormationPatterns(List<Vector3> formation_pattern, int rotation_resolution)
         {
-            // Returns all possible rotations of a rigid formation given an angle resolution of the rotations in degrees.
-            List<RigidFormation> rotated_rigid_formations = new List<RigidFormation>();                                             // List where the rotated formations will be saved.
-            //rotated_rigid_formations.Add(new RigidFormation(formation_pattern);                                                     // Create the first unrotated formation.
-
-            //Debug.Log("--- Original formation:");
-            for (int i = 0; i < formation_pattern.Count; i++)                                                                       // Loop over positions in the pattern.
+            // Returns all possible rotations of a formation pattern given an angle resolution of the rotations in degrees.
+            List<List<Vector3>> rotated_formation_patterns = new List<List<Vector3>>();                                             // List where the rotated formation patterns will be saved.
+            for (int angle = 0; angle < 360; angle += rotation_resolution)                                                          // Create all possible rotations of the formation pattern.
             {
-                //Debug.Log(formation_pattern[i]);
-            }
-
-            for (int angle = 0; angle < 360; angle += rotation_resolution)                                                          // Create all possible rotations of the rigid formation.
-            {
-                //Debug.Log("--- New formation:");
-
                 Vector3 pivot = formation_pattern[0];                                                                               // Pivot where the pattern will rotate around.
                 for (int i = 0; i < formation_pattern.Count; i++)                                                                   // Loop over positions in the pattern.
                 {
                     formation_pattern[i] = RotateAroundPoint(formation_pattern[i], pivot, Quaternion.Euler(0, angle, 0));           // Rotate with angle around the y-axis.
-
-                    //Debug.Log(formation_pattern[i]);
                 }
                 List<Vector3> new_formation_pattern = new List<Vector3>(formation_pattern);                                         // Clone the formation pattern so it is not changed next iteration.
-                rotated_rigid_formations.Add(new RigidFormation(new_formation_pattern));                                            // Create RigidFormation objects from the patterns.
+                rotated_formation_patterns.Add(new_formation_pattern);                                                              // Add the formation pattern to the list.
             }
-            return rotated_rigid_formations;
+            return rotated_formation_patterns;
         }
 
         public Vector3 RotateAroundPoint(Vector3 point, Vector3 pivot, Quaternion angle) {
             // Rotates a point around another point as pivot.
             return angle * (point - pivot) + pivot;                                                                                 // TODO: Check how this handles rotations for different angles.
+        }
+
+        public RigidFormation MoveFormation(RigidFormation rf, Vector3 new_leader_position)
+        {
+            // Moves the formation. Returns new RigidFormation if successful and false if an agent ends up in an obstacle.
+            Vector3 old_leader_position = rf.agent_positions[0];
+            Vector3 position_difference = new_leader_position - old_leader_position;
+            List<Vector3> new_agent_positions = new List<Vector3>(rf.agent_positions);
+            for (int i = 0; i < rf.nr_of_agents; i++)
+            {
+                new_agent_positions[i] += position_difference;
+                if (CheckObstacle(new_agent_positions[i][0], new_agent_positions[i][2]))
+                {
+                    return null;
+                }
+            }
+            return new_agent_positions;
         }
 
         public void ConnectNeighbors(RFGraph rf_graph, RFNode node, float rotation)
@@ -392,10 +410,10 @@ namespace UnityStandardAssets.Vehicles.Car
             // Sides:   (node.x - 1, node.z), (node.x + 1, node.z);
             // Below:   (node.x - 1, node.z + 1), (node.x, node.z + 1), (node.x + 1, node.z + 1);
             (float x, float z)[] up_left_positions = new (float, float)[] { (node.x - 1, node.z - 1), (node.x, node.z - 1), (node.x + 1, node.z - 1), (node.x - 1, node.z) };
-            for (float, float) position in up_left_positions
+            foreach ((float, float) position in up_left_positions)
             {
-                (float, float, float) key = (position[0], position[1], rotation);                                                   // Position including rotation as key in dictionary.
-                if (RFNode.node_dictionary.TryGetValue(key, out RFNode adj_node))                                                   // Checks if there is a neighbor at this position.
+                (float, float, float) key = (position.Item1, position.Item2, rotation);                                             // Position including rotation as key in dictionary.
+                if (rf_graph.node_dictionary.TryGetValue(key, out RFNode adj_node))                                                 // Checks if there is a neighbor at this position.
                 {
                     // "node" and "adj_node" are neighbours.
                     // Add edges between them with the opposite node's survivability score as edge weight.
@@ -405,13 +423,7 @@ namespace UnityStandardAssets.Vehicles.Car
             }
         }
 
-        public void OnGUI()
-        {
-            // Debugging in Game view.
-            //Handles.Label(this_position, "ID: " + this_id);
-        }
-
-        void OnDrawGizmos()
+        public void OnDrawGizmos()
         {
             // Debugging in Scene view.
             if (DEBUG && this_id == 0)
@@ -487,7 +499,7 @@ namespace UnityStandardAssets.Vehicles.Car
                 // ----- /Draw scores in a grid fashion -----
             }
         }
-    }
+}
 
 
     public class RigidFormation
@@ -505,23 +517,6 @@ namespace UnityStandardAssets.Vehicles.Car
                 if (ret == 0) ret = x[2].CompareTo(y[2]);
                 return ret;
             });
-        }
-
-        public bool MoveFormation(Vector3 new_leader_position, Func<float,float,bool>CheckObstacle)             // TODO: To debug, check that this.agent_positions[0] == new_leader_position.
-        {
-            // Moves the formation. Returns true if successful and false if an agent ends up in an obstacle.
-            // Input: New position of leader, function to check for collision at a point.
-            Vector3 old_leader_position = this.agent_positions[0];
-            Vector3 position_difference = new_leader_position - old_leader_position;
-            for (int i = 0; i < nr_of_agents; i++)
-            {
-                this.agent_positions[i] += position_difference;
-                if (CheckObstacle(this.agent_positions[i][0], this.agent_positions[i][2]))
-                {
-                    return false;
-                }
-            }
-            return true;                                                                        
         }
 
         public Vector3 GetLeaderPosition()
@@ -566,28 +561,57 @@ namespace UnityStandardAssets.Vehicles.Car
             }
             return formation_survivability;
         }
+
+        public override bool Equals(Object obj)
+        {
+            // Compare two rigid formations if they have all agents at the exact same position (including order).               TODO: Should order be taken into account or not?
+            if ((obj == null) || !this.GetType().Equals(obj.GetType()))                                     // Check for null and compare run-time types.
+            {
+                return false;
+            }
+            else
+            {
+                RigidFormation other_rf = (RigidFormation)obj;
+                for (int i = 0; i < this.nr_of_agents; i++)
+                {
+                    if (!this.agent_positions[i] == other_rf.agent_positions[i])
+                    {
+                        return false
+                    }
+                }
+                // Check for equality without taking order into account.
+                //foreach (Vector3 pos in this.agent_positions)
+                //{
+                //    if (!other_rf.agent_positions.Contains(pos))                                            // Check if the position exists in the other rigid formation.
+                //    {
+                //        return false
+                //    }
+                //}
+                return true;
+            }
+        }
     }
 
 
     public class RFNode
     {
-        private static Dictionary<(float, float, float), RFNode> node_dictionary = new Dictionary<(float, float, float), RFNode>();     // Dictionary of all nodes with (x, z, rotation) tuple as key.
+        //public static Dictionary<(float, float, float), RFNode> node_dictionary = new Dictionary<(float, float, float), RFNode>();     // Dictionary of all nodes with (x, z, rotation) tuple as key.
         private static float cell_size = 1.0f;                                              // Size of the cells in the grid. Should correspond to the grid resolution.
         public float x;
         public float z;
         public float rotation;
         public float survivability;                                                         // Measure of team survivability at this position.
-        public float rf_node_nr;                                                        
+        public int rf_node_nr;                                                        
         private List<RFNode> neighbors = new List<RFNode>();                                // List of adjacent non-obstacle nodes.
 
-        public RFNode(float x, float z, float rotation, float survivability, float rf_node_nr)
+        public RFNode(RFGraph rf_graph, float x, float z, float rotation, float survivability, int rf_node_nr)
         {
             this.x = x;
             this.z = z;
             this.rotation = rotation;
             this.survivability = survivability;
             this.rf_node_nr = rf_node_nr;
-            node_dictionary.Add((this.x, this.z, this.rotation), this);                     // Add this node to the dictionary.
+            rf_graph.AddNode((this.x, this.z), this);                                       // Add this node to a dictionary in the graph.
         }
 
         public bool CheckAdjacent(RFNode node)
@@ -608,24 +632,29 @@ namespace UnityStandardAssets.Vehicles.Car
             this.neighbors.Add(adjacent_node);
         }
 
-        public static RFNode GetNode(float x, float z, float rotation)
-        {
-            // Returns the node object given x and z coordinates and rotation.
-            return node_dictionary[(x, z, rotation)];
-        }
+        //public static RFNode GetNode(float x, float z, float rotation)                // Moved to RFGraph.
+        //{
+        //    // Returns the node object given x and z coordinates and rotation.
+        //    return node_dictionary[(x, z, rotation)];
+        //}
     }
 
 
     public class RFGraph
     {
+        public Dictionary<(float, float, float), RFNode> node_dictionary = new Dictionary<(float, float, float), RFNode>();     // Dictionary of all nodes with (x, z, rotation) tuple as key.
+        public List<RigidFormation> rigid_formations;
         private int num_vertices;
         private float[,] adj_matrix;
+        public float rotation;
 
-        public RFGraph(int num_vertices)
+        public RFGraph(int num_vertices, float rotation)
         {
             // Initialize the matrix.
             this.num_vertices = num_vertices;
             this.adj_matrix = new float[num_vertices, num_vertices];
+            this.rotation = rotation;
+            this.rigid_formations = new List<RigidFormation>();
         }
 
         public void AddEdge(int node_1, int node_2, float weight)
@@ -638,11 +667,21 @@ namespace UnityStandardAssets.Vehicles.Car
             this.adj_matrix[node_1, node_2] = weight;
         }
 
+        public void AddNode(float x, float z, RFNode node)
+        {
+            this.node_dictionary.Add((x, z, rotation), node);
+        }
+
+        public void AddRigidFormation(RigidFormation rf)
+        {
+            this.rigid_formations.Add(rf);
+        }
+
         //public void GetAdjacent(int node)
         //{
         //    for (int i = 0; i < num_vertices; i++)
         //    {
-                
+
         //    }
         //}
     }
