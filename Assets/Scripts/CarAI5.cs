@@ -25,9 +25,16 @@ namespace UnityStandardAssets.Vehicles.Car
         float x_high;                                                                           // ...
         float z_low;                                                                            // ...
         float z_high;                                                                           // ...
+        int grid_resolution = 10;
 
         int rrf_resolution = 45;                                                                // Angle resolution in degrees of Rotating Rigid Formation Path Finding.       TODO: Update placeholder value.
-        RFGraph traversal_graph;
+        int current_rf_number;                                                                  // Which node in the multigraph we are at currently.
+        Dictionary<int, RigidFormation> multi_rf_dict;                                          // Dictionary of all the rigid formation nodes in the final multigraph.
+
+        static RFGraph traversal_graph;                                                         // Final multigraph of the Rotating Rigid Formation Path Finding.
+        static bool target_rf_reached;                                                          // States if the target formation position is reached or not.
+        static int target_rf_number;                                                            // The unique number of the target rigid formation.
+        Vector3 target_position;                                                                // Position where this agent is currently heading towards.
 
         private CarController m_Car;                                                            // The car controller that we want to use.
         public GameObject terrain_manager_game_object;
@@ -49,7 +56,7 @@ namespace UnityStandardAssets.Vehicles.Car
             m_Car = GetComponent<CarController>();                                              // Get the car controller
             terrain_manager = terrain_manager_game_object.GetComponent<TerrainManager>();
             my_rigidbody = GetComponent<Rigidbody>();
-            old_target_pos = my_target.transform.position;
+            //old_target_pos = my_target.transform.position;
 
             // note that both arrays will have holes when objects are destroyed
             // but for initial planning they should work
@@ -96,11 +103,29 @@ namespace UnityStandardAssets.Vehicles.Car
             // ----- Build weighted position matrix -----
             if (this_id == 0)                                                                   // Only build the matrix once (for the first agent in friends list).
             {
-                weighted_positions = new float[(int)(x_high - x_low), (int)(z_high - z_low)];
-                for (int x = (int)x_low; x < x_high; x++)
+                //weighted_positions = new float[(int)(x_high - x_low), (int)(z_high - z_low)];
+                float map_width = x_high - x_low;
+                float map_height = z_high - z_low;
+                int grid_width = (int)(map_width / grid_resolution);
+                int grid_height = (int)(map_height / grid_resolution);
+
+                weighted_positions = new float[grid_width, grid_height];
+                //for (int x = (int)x_low; x < x_high; x++)
+                //{
+                //    for (int z = (int)z_low; z < z_high; z++)
+                //    {
+                for (int grid_i = 0; grid_i < grid_width; grid_i++)
                 {
-                    for (int z = (int)z_low; z < z_high; z++)
+                    for (int grid_j = 0; grid_j < grid_height; grid_j++)
                     {
+                        // Get x-coordinate of the middle of this grid position.
+                        float x_step = (x_high - x_low) / grid_width;
+                        float x = x_low + x_step / 2 + x_step * grid_i;
+
+                        // Get z-coordinate of the middle of this grid position.
+                        float z_step = (z_high - z_low) / grid_height;
+                        float z = z_low + z_step / 2 + z_step * grid_j;
+
                         float score = 0.0f;                                                     // Base score is zero.
 
                         if (CheckObstacle(x, z) is false)                                       // Only check obstacle-free positions.
@@ -110,7 +135,7 @@ namespace UnityStandardAssets.Vehicles.Car
 
                             if (CheckInSight(position, current_target_position))                // If the current target is in sight.
                             {
-                                //score += target_in_sight_score;                                 // Add a score if the target is in sight.         ##### Weird fucking bug when using this #####
+                                //score += target_in_sight_score;                                 // Add a score if the target is in sight.         ##### Weird bug when using this #####
                                 score += 50;                                                    // Add a score if the target is in sight.
                             }
                             // ----- /"Target in sight"-score -----
@@ -128,12 +153,12 @@ namespace UnityStandardAssets.Vehicles.Car
                             }
                             // ----- /"Not exposed to enemies"-score -----
                         }
-                        int x_index = x - (int)x_low;                                           // Change from actual coordinates to indices in the matrix.
-                        int z_index = z - (int)z_low;
+                        //int x_index = x - (int)x_low;                                           // Change from actual coordinates to indices in the matrix.
+                        //int z_index = z - (int)z_low;
 
                         //Debug.Log("Score at x:" + x + ", z:" + z + " = " + score);
 
-                        weighted_positions[x_index, z_index] = score;                           // Save the score at this position in the matrix.
+                        weighted_positions[grid_i, grid_j] = score;                           // Save the score at this position in the matrix.
                     }
                 }
             }
@@ -153,10 +178,23 @@ namespace UnityStandardAssets.Vehicles.Car
                     starting_formation.Add(friend.transform.position);
                 }
                 starting_formation = SortFormation(starting_formation);
+                traversal_graph = RRFPathFinding(starting_formation);
+                Debug.Log("TEEEEEEEEEEEST");
+                Debug.Log(traversal_graph);
+
+                target_rf_reached = true;
+                int target_rf_number = -1;
             }
-            traversal_graph = RRFPathFinding(starting_formation);
+            
+
+            // ########################################################################################################################################################################
+            // ######################## Hur hittar vi current_rf_number från startpositionen ?? ##############################################
+            // ######################## Borde kunna använda startpositionen starting_formation och få fram det genom den (rotation 0)? ##############################################
+            // ########################################################################################################################################################################
+
             // ----- /Rotating Rigid Formation Path Finding -----
 
+            
 
             if (DEBUG && this_id == 0)
             {
@@ -209,35 +247,49 @@ namespace UnityStandardAssets.Vehicles.Car
             GameObject current_car = m_Car.gameObject;
             this_position = current_car.transform.position;                                     // Update current agent's position to current.
 
-
-            if (DEBUG)
-            {
-                // ----- Log to console when current agent can see an enemy -----
-                //foreach (GameObject enemy in enemies)
-                //{
-                //    Vector3 enemy_position = enemy.transform.position;
-                //    if (CheckInSight(this_position, enemy_position))
-                //    {
-                //        Debug.Log("--- Enemy visible ---");
-                //    }
-                //}
-                // ----- /Log to console when current agent can see an enemy -----
-            }
-
             // Execute your path here
             // ...
 
+            //if (this_id == 0)
+            //{
+            //    Debug.Log(traversal_graph);
+            //}
 
+            // Find adjacent node with minimum edge weight.                                 TODO: Ändra till maximum?
             if (this_id == 0)
             {
-                // ############################# HUR HITTAR MAN VART MAN AGENTEN SKA ÅKA TILL SAMT ÅKA FRÅN (vilket rf_number har den just nu???) #############################
-                traversal_graph.adj_matrix
+                float min_weight = float.MaxValue;
+                if (target_rf_reached)
+                {
+                    for (int i = 0; i < traversal_graph.num_vertices; i++)
+                    {
+                        if (traversal_graph.adj_matrix[current_rf_number, i] < min_weight)
+                        {
+                            target_rf_number = i;
+                            min_weight = traversal_graph.adj_matrix[current_rf_number, i];
+                        }
+                    }
+                    target_rf_reached = false;
+                }
             }
+
+            // ############################ This will not be correct atm. TODO: Sort the agent_positions in same order as this_id ############################
+
+            
+
+            target_position = this_position;
+            //if (!target_rf_reached)
+            //{
+            //    List<Vector3> target_agent_positions = traversal_graph.rf_number_dictionary[target_rf_number].agent_positions;
+            //    target_position = target_agent_positions[this_id];
+            //}
+            
+            // ############## TODO: Set target_rf_reached to true when all agents are in position. ##############
 
 
             // ----- Petter's PD controller -----
             // keep track of target position and velocity
-            Vector3 target_position = null;
+            //Vector3 target_position = null;
             target_velocity = (target_position - old_target_pos) / Time.fixedDeltaTime;
             old_target_pos = target_position;
 
@@ -254,9 +306,23 @@ namespace UnityStandardAssets.Vehicles.Car
             Debug.DrawLine(transform.position, transform.position + desired_acceleration, Color.black);
 
             // this is how you control the car
-            Debug.Log("Steering:" + steering + " Acceleration:" + acceleration);
+            //Debug.Log("Steering:" + steering + " Acceleration:" + acceleration);
             m_Car.Move(steering, acceleration, acceleration, 0f);
             // ----- /Petter's PD controller -----
+
+            if (DEBUG)
+            {
+                // ----- Log to console when current agent can see an enemy -----
+                //foreach (GameObject enemy in enemies)
+                //{
+                //    Vector3 enemy_position = enemy.transform.position;
+                //    if (CheckInSight(this_position, enemy_position))
+                //    {
+                //        Debug.Log("--- Enemy visible ---");
+                //    }
+                //}
+                // ----- /Log to console when current agent can see an enemy -----
+            }
         }
 
         public bool CheckObstacle(float x, float z)
@@ -298,9 +364,10 @@ namespace UnityStandardAssets.Vehicles.Car
             return enemies[0];
         }
 
-        public void RRFPathFinding(List<Vector3> initial_formation_pattern)
+        public RFGraph RRFPathFinding(List<Vector3> initial_formation_pattern)
         {
             // Rotating Rigid Formation Path Finding.
+            multi_rf_dict = new Dictionary<int, RigidFormation>();
             List<List<Vector3>> possible_formation_patterns = GetRotatedFormationPatterns(initial_formation_pattern, rrf_resolution);
             float x;
             float z;
@@ -325,17 +392,16 @@ namespace UnityStandardAssets.Vehicles.Car
                     for (int j = 0; j < x_high + formation_width; j++)                                                      // Iterate over map width + formation width.
                     {
                         agent_positions = MoveFormation(agent_positions, new Vector3(x, 0.0f, z));                          // Move formation.
-                        if (agent_positions != null)                                                                       // Check that the move was possible (i.e no agent hit an obstacle).
+                        if (agent_positions[0][0] != -999)                                                                  // Check that the move was possible (i.e no agent hit an obstacle).
                         {
                             rf = new RigidFormation(rf_graph.rf_list.Count, agent_positions, weighted_positions);           // Create a RigidFormation object for the new position.
-                            rf_graph.AddRigidFormation(x, z, rf);                                                           // Add this rigid formation to the graph (note: without edges).
+                            rf_graph.AddRigidFormation(rf.rf_number, x, z, rf);                                             // Add this rigid formation to the graph (note: without edges).
                         }
                         x += 1.0f;                                                                                          // Add one step to the right.
                     }
                     x = x_low;                                                                                              // Reset x to leftmost position.
                     z -= 1.0f;                                                                                              // Shift down one row.
                 }
-
                 // Link nodes in rf_graph with its adjacent vertices and set the weight of every outgoing edge to be the adjacent vertex's survivability score.
                 rf_graph.InitAdjacencyMatrix(rf_graph.rf_list.Count);                                                       // Initialize the adjacency matrix so we can add edges.
                 foreach (RigidFormation rigid_formation in rf_graph.rf_list)
@@ -349,12 +415,13 @@ namespace UnityStandardAssets.Vehicles.Car
 
             // Link all rf_graphs to a single multigraph.
             RFGraph multi_graph = ConnectGraphs(rf_graph_list);
+            return multi_graph;
         }
 
         public List<Vector3> SortFormation(List<Vector3>  agent_positions)
         {
             // ########################################################################################################################################################################
-            // ######################## Ändra så att den sorterar efter this_id?? Så att man kan få fram vilken pos varje agent ska till ################################################
+            // ######################## Ändra så att den sorterar efter this_id?? Så att man kan få fram vilken pos varje agent ska till ##############################################
             // ########################################################################################################################################################################
             agent_positions.Sort((x, y) => {                                                                                // Sort by x-position first and then by y-position.
                 var ret = x[0].CompareTo(y[0]);
@@ -423,7 +490,12 @@ namespace UnityStandardAssets.Vehicles.Car
                 new_agent_positions[i] += position_difference;
                 if (CheckObstacle(new_agent_positions[i][0], new_agent_positions[i][2]))
                 {
-                    return null;
+                    // Set the positions to -999 (temporary solution instead of nullable types).
+                    for (int j = 0; j < agent_positions.Count; j++)
+                    {
+                        new_agent_positions[j] = new Vector3(-999, -999, -999);
+                    }
+                    return new_agent_positions;
                 }
             }
             return new_agent_positions;
@@ -443,15 +515,19 @@ namespace UnityStandardAssets.Vehicles.Car
 
             multi_graph.InitAdjacencyMatrix(num_vertices);                                                                  // Create an adjacency matrix with vertices from every subgraph.
 
+            
+
             for (int i = 0; i < rf_graph_list.Count; i++)                                                                   // Iterate over each rf_graph.
             {
                 foreach (RigidFormation rf1 in rf_graph_list[i].rf_list)
                 {
+                    int rf1_number_multi = rf1.rf_number + index_offset[i];                                                 // Offset the rf's number from rf_graph[i].
+                    multi_rf_dict.Add(rf1_number_multi, rf1);                                                               // Add this rigid formation object in a dictionary.
                     foreach (RigidFormation rf2 in rf_graph_list[i+1].rf_list)
                     {
                         if (rf1.Equals(rf2))                                                                                // Check if the agent's positions matches.
                         {
-                            int rf1_number_multi = rf1.rf_number + index_offset[i];                                         // Offset the rf's number from rf_graph[i].
+                            
                             int rf2_number_multi = rf2.rf_number + index_offset[i + 1];                                     // Offset the rf's number from rf_graph[i+1].
                             multi_graph.AddEdge(rf1_number_multi, rf2_number_multi, 0);                                     // Add edge from the node in rf_graph[i] to the same node in rf_graph[i+1] with no weight.
                         }
@@ -500,82 +576,82 @@ namespace UnityStandardAssets.Vehicles.Car
             return distances;
         }
 
-        public void OnDrawGizmos()
-        {
-            // Debugging in Scene view.
-            if (DEBUG && this_id == 0)
-            {
-                Handles.Label(this_position, "ID: " + this_id);                                                                     // Show ID of the cars.
+        //public void OnDrawGizmos()
+        //{
+        //    // Debugging in Scene view.
+        //    if (DEBUG && this_id == 0)
+        //    {
+        //        Handles.Label(this_position, "ID: " + this_id);                                                                     // Show ID of the cars.
 
-                Gizmos.DrawSphere(new Vector3(x_low, 10.0f, z_high), 5);                                                            // Visualize a point.
+        //        Gizmos.DrawSphere(new Vector3(x_low, 10.0f, z_high), 5);                                                            // Visualize a point.
 
-                // ----- Create and visualize Rotated Rigid Formations -----
-                //float position_1_x = terrain_manager.myInfo.get_x_pos(5);                       // Coordinates (5,9).
-                //float position_1_z = terrain_manager.myInfo.get_z_pos(9);
-                //Vector3 position_1 = new Vector3(position_1_x, 0.0f, position_1_z);
-                //float position_2_x = terrain_manager.myInfo.get_x_pos(6);                       // Coordinates (6,9).
-                //float position_2_z = terrain_manager.myInfo.get_z_pos(9);
-                //Vector3 position_2 = new Vector3(position_2_x, 0.0f, position_2_z);
-                //float position_3_x = terrain_manager.myInfo.get_x_pos(7);                       // Coordinates (7,9).
-                //float position_3_z = terrain_manager.myInfo.get_z_pos(9);
-                //Vector3 position_3 = new Vector3(position_3_x, 0.0f, position_3_z);
+        //        // ----- Create and visualize Rotated Rigid Formations -----
+        //        //float position_1_x = terrain_manager.myInfo.get_x_pos(5);                       // Coordinates (5,9).
+        //        //float position_1_z = terrain_manager.myInfo.get_z_pos(9);
+        //        //Vector3 position_1 = new Vector3(position_1_x, 0.0f, position_1_z);
+        //        //float position_2_x = terrain_manager.myInfo.get_x_pos(6);                       // Coordinates (6,9).
+        //        //float position_2_z = terrain_manager.myInfo.get_z_pos(9);
+        //        //Vector3 position_2 = new Vector3(position_2_x, 0.0f, position_2_z);
+        //        //float position_3_x = terrain_manager.myInfo.get_x_pos(7);                       // Coordinates (7,9).
+        //        //float position_3_z = terrain_manager.myInfo.get_z_pos(9);
+        //        //Vector3 position_3 = new Vector3(position_3_x, 0.0f, position_3_z);
 
-                //List<Vector3> formation_pattern = new List<Vector3>();
-                //formation_pattern.Add(position_1);
-                //formation_pattern.Add(position_2);
-                //formation_pattern.Add(position_3);
+        //        //List<Vector3> formation_pattern = new List<Vector3>();
+        //        //formation_pattern.Add(position_1);
+        //        //formation_pattern.Add(position_2);
+        //        //formation_pattern.Add(position_3);
 
-                //Gizmos.color = Color.blue;
-                //GUIStyle style_original = new GUIStyle();
-                //style_original.normal.textColor = Color.blue;
-                //Gizmos.DrawSphere(position_1, 1);
-                //Handles.Label(position_1 + Vector3.back * 3 + Vector3.left * 6, "" + position_1, style_original);
-                //Gizmos.DrawSphere(position_2, 1);
-                //Handles.Label(position_2 + Vector3.back * 3 + Vector3.left * 6, "" + position_2, style_original);
-                //Gizmos.DrawSphere(position_3, 1);
-                //Handles.Label(position_3 + Vector3.back * 3 + Vector3.left * 6, "" + position_3, style_original);
+        //        //Gizmos.color = Color.blue;
+        //        //GUIStyle style_original = new GUIStyle();
+        //        //style_original.normal.textColor = Color.blue;
+        //        //Gizmos.DrawSphere(position_1, 1);
+        //        //Handles.Label(position_1 + Vector3.back * 3 + Vector3.left * 6, "" + position_1, style_original);
+        //        //Gizmos.DrawSphere(position_2, 1);
+        //        //Handles.Label(position_2 + Vector3.back * 3 + Vector3.left * 6, "" + position_2, style_original);
+        //        //Gizmos.DrawSphere(position_3, 1);
+        //        //Handles.Label(position_3 + Vector3.back * 3 + Vector3.left * 6, "" + position_3, style_original);
 
-                //List<RigidFormation> possible_rigid_formations = GetRotatedRigidFormations(formation_pattern, rrf_resolution);
+        //        //List<RigidFormation> possible_rigid_formations = GetRotatedRigidFormations(formation_pattern, rrf_resolution);
 
-                //foreach (RigidFormation rf in possible_rigid_formations)
-                //{
-                //    Vector3 leader = rf.agent_positions[0];
-                //    int f_index = 0;
-                //    foreach (Vector3 agent_pos in rf.agent_positions)
-                //    {
-                //        Gizmos.color = Color.magenta;
-                //        Gizmos.DrawSphere(agent_pos, 1);
-                //        Handles.Label(agent_pos + Vector3.back + Vector3.left * 6, "" + f_index + ". " + agent_pos);
-                //        f_index++;
-                //    }
-                //}
-                // ----- /Visualize the Rotated Rigid Formations -----
+        //        //foreach (RigidFormation rf in possible_rigid_formations)
+        //        //{
+        //        //    Vector3 leader = rf.agent_positions[0];
+        //        //    int f_index = 0;
+        //        //    foreach (Vector3 agent_pos in rf.agent_positions)
+        //        //    {
+        //        //        Gizmos.color = Color.magenta;
+        //        //        Gizmos.DrawSphere(agent_pos, 1);
+        //        //        Handles.Label(agent_pos + Vector3.back + Vector3.left * 6, "" + f_index + ". " + agent_pos);
+        //        //        f_index++;
+        //        //    }
+        //        //}
+        //        // ----- /Visualize the Rotated Rigid Formations -----
 
 
-                // ----- Draw scores in a grid fashion -----
-                int x_N = terrain_manager.myInfo.x_N;
-                int z_N = terrain_manager.myInfo.z_N;
-                Vector3 position;
-                float score;
-                float grid_center_x;
-                float grid_center_z;
-                GUIStyle style = new GUIStyle();
-                style.normal.textColor = Color.green;
-                for (int i = 0; i < x_N; i++)
-                {
-                    for (int j = 0; j < z_N; j++)
-                    {
-                        grid_center_x = terrain_manager.myInfo.get_x_pos(i);
-                        grid_center_z = terrain_manager.myInfo.get_z_pos(j);
-                        position = new Vector3(grid_center_x, 0.0f, grid_center_z);
-                        score = weighted_positions[(int)Math.Floor(grid_center_x - x_low), (int)Math.Floor(grid_center_z - z_low)];
-                        Handles.Label(position, "" + score, style);
-                        //Handles.Label(position, "" + i + "," + j, style);
-                    }
-                }
-                // ----- /Draw scores in a grid fashion -----
-            }
-        }
+        //        // ----- Draw scores in a grid fashion -----
+        //        int x_N = terrain_manager.myInfo.x_N;
+        //        int z_N = terrain_manager.myInfo.z_N;
+        //        Vector3 position;
+        //        float score;
+        //        float grid_center_x;
+        //        float grid_center_z;
+        //        GUIStyle style = new GUIStyle();
+        //        style.normal.textColor = Color.green;
+        //        for (int i = 0; i < x_N; i++)
+        //        {
+        //            for (int j = 0; j < z_N; j++)
+        //            {
+        //                grid_center_x = terrain_manager.myInfo.get_x_pos(i);
+        //                grid_center_z = terrain_manager.myInfo.get_z_pos(j);
+        //                position = new Vector3(grid_center_x, 0.0f, grid_center_z);
+        //                score = weighted_positions[(int)Math.Floor(grid_center_x - x_low), (int)Math.Floor(grid_center_z - z_low)];
+        //                Handles.Label(position, "" + score, style);
+        //                //Handles.Label(position, "" + i + "," + j, style);
+        //            }
+        //        }
+        //        // ----- /Draw scores in a grid fashion -----
+        //    }
+        //}
 }
 
 
@@ -585,6 +661,7 @@ namespace UnityStandardAssets.Vehicles.Car
         public float[,] weighted_positions;
         public int nr_of_agents;
         public List<Vector3> agent_positions;
+        
 
         public RigidFormation(int rf_number, List<Vector3> agent_positions, float[,] weighted_positions)
         {
@@ -629,7 +706,7 @@ namespace UnityStandardAssets.Vehicles.Car
                 (leader_x - 1, leader_z + 1), (leader_x, leader_z + 1), (leader_x + 1, leader_z + 1)};                                                          // Below.
             foreach ((float, float) position in positions_around)                                                                   // Iterate over adjacent positions including diagonal positions.
             {
-                if (rf_graph.rf_dictionary.TryGetValue((position.Item1, position.Item2), out RigidFormation rf_neighbor))           // Checks if there is a neighbor at this position.
+                if (rf_graph.rf_pos_dictionary.TryGetValue((position.Item1, position.Item2), out RigidFormation rf_neighbor))       // Checks if there is a neighbor at this position.
                 {
                     rf_graph.AddEdge(this.rf_number, rf_neighbor.rf_number, rf_neighbor.GetSurvivability());                        // Add edge with neighbor's survivability score as weight.
                 }
@@ -718,7 +795,8 @@ namespace UnityStandardAssets.Vehicles.Car
     public class RFGraph
     {
         //public Dictionary<(float, float, float), RFNode> node_dictionary = new Dictionary<(float, float, float), RFNode>();     // Dictionary of all nodes with (x, z, rotation) tuple as key.
-        public Dictionary<(float, float), RigidFormation> rf_dictionary;                // Dictionary of all rigid formations with the leader's position as key.
+        public Dictionary<(float, float), RigidFormation> rf_pos_dictionary;            // Dictionary of all rigid formations with the leader's position as key.
+        public Dictionary<int, RigidFormation> rf_number_dictionary;                    // Dictionary of all rigid formations with the rf's unique number as key.
         public List<RigidFormation> rf_list;                                            // List of all rigid formations.
         public float[,] adj_matrix;
         public float rotation;
@@ -727,7 +805,8 @@ namespace UnityStandardAssets.Vehicles.Car
         public RFGraph(float rotation)
         {
             this.rotation = rotation;
-            this.rf_dictionary = new Dictionary<(float, float), RigidFormation>();
+            this.rf_pos_dictionary = new Dictionary<(float, float), RigidFormation>();
+            this.rf_number_dictionary = new Dictionary<int, RigidFormation>();
             this.rf_list = new List<RigidFormation>();
         }
 
@@ -736,10 +815,11 @@ namespace UnityStandardAssets.Vehicles.Car
         //    this.node_dictionary.Add((x, z, rotation), node);
         //}
 
-        public void AddRigidFormation(float x, float z, RigidFormation rf)
+        public void AddRigidFormation(int rf_number, float x, float z, RigidFormation rf)
         {
             // Store the RigidFormation objects in the graph.
-            this.rf_dictionary.Add((x, z), rf);
+            this.rf_pos_dictionary.Add((x, z), rf);
+            this.rf_number_dictionary.Add(rf_number, rf);
             this.rf_list.Add(rf);
         }
 
@@ -747,6 +827,7 @@ namespace UnityStandardAssets.Vehicles.Car
         {
             // Initializes the adjacency matrix for this graph.
             this.num_vertices = num_vertices;
+            Debug.Log("RFGraph number of vertices: " + num_vertices);
             this.adj_matrix = new float[num_vertices, num_vertices];
         }
 
