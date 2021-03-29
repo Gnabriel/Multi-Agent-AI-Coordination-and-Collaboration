@@ -17849,6 +17849,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 6b95a08bb76b04a79910669d0eebe447, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  DEBUG: 0
   target_in_sight_score: 10
   not_exposed_score: 10
   this_position: {x: 0, y: 0, z: 0}
@@ -17856,6 +17857,11 @@ MonoBehaviour:
   terrain_manager_game_object: {fileID: 1677047333}
   friends: []
   enemies: []
+  target_velocity: {x: 0, y: 0, z: 0}
+  old_target_pos: {x: 0, y: 0, z: 0}
+  desired_velocity: {x: 0, y: 0, z: 0}
+  k_p: 2
+  k_d: 0.5
 --- !u!114 &468917176
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -18221,6 +18227,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 6b95a08bb76b04a79910669d0eebe447, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  DEBUG: 0
   target_in_sight_score: 10
   not_exposed_score: 10
   this_position: {x: 0, y: 0, z: 0}
@@ -18228,6 +18235,11 @@ MonoBehaviour:
   terrain_manager_game_object: {fileID: 1677047333}
   friends: []
   enemies: []
+  target_velocity: {x: 0, y: 0, z: 0}
+  old_target_pos: {x: 0, y: 0, z: 0}
+  desired_velocity: {x: 0, y: 0, z: 0}
+  k_p: 2
+  k_d: 0.5
 --- !u!114 &492361547
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -29887,6 +29899,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 6b95a08bb76b04a79910669d0eebe447, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  DEBUG: 0
   target_in_sight_score: 10
   not_exposed_score: 10
   this_position: {x: 0, y: 0, z: 0}
@@ -29894,6 +29907,11 @@ MonoBehaviour:
   terrain_manager_game_object: {fileID: 1677047333}
   friends: []
   enemies: []
+  target_velocity: {x: 0, y: 0, z: 0}
+  old_target_pos: {x: 0, y: 0, z: 0}
+  desired_velocity: {x: 0, y: 0, z: 0}
+  k_p: 2
+  k_d: 0.5
 --- !u!114 &792701571
 MonoBehaviour:
   m_ObjectHideFlags: 0

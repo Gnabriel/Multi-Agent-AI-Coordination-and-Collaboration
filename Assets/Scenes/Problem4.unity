@@ -5470,7 +5470,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: ed951abcb196b40f38b3699dfa82c76c, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  terrain_filename: text/terrain4
+  terrain_filename: text/terrain4_new
   myInfo:
     file_name: 
     x_low: 0
@@ -22997,10 +22997,6 @@ MonoBehaviour:
   terrain_manager_game_object: {fileID: 153530180}
   friends: []
   enemies: []
-  x: 0
-  z: 0
-  current_agent: 0
-  max_dist: 0
 --- !u!114 &458510688
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -83897,10 +83893,6 @@ MonoBehaviour:
   terrain_manager_game_object: {fileID: 153530180}
   friends: []
   enemies: []
-  x: 0
-  z: 0
-  current_agent: 0
-  max_dist: 0
 --- !u!114 &1471962244
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -101734,10 +101726,6 @@ MonoBehaviour:
   terrain_manager_game_object: {fileID: 153530180}
   friends: []
   enemies: []
-  x: 0
-  z: 0
-  current_agent: 0
-  max_dist: 0
 --- !u!114 &1902951897
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -102628,10 +102616,6 @@ MonoBehaviour:
   terrain_manager_game_object: {fileID: 153530180}
   friends: []
   enemies: []
-  x: 0
-  z: 0
-  current_agent: 0
-  max_dist: 0
 --- !u!114 &1993684193
 MonoBehaviour:
   m_ObjectHideFlags: 0
