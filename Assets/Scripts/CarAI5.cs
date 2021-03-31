@@ -507,6 +507,8 @@ namespace UnityStandardAssets.Vehicles.Car
             // ########################################################################################################################################################################
             // ########################################################################################################################################################################
             // ######################## Change so that vertices from different graphs with __one__ agent at the same position is linked. ##############################################
+            // ######################## This one agent should be the leader of that rigid formation, ie the pivot of the rotation.       ##############################################
+            // ########################                                                                                                  ##############################################
             // ######################## "In the next step we would like to link vertices from different graphs that contains a joint     ##############################################
             // ######################## agent, meaning an agent that is located at the same position on both graphs and is acting as a   ##############################################
             // ######################## pivot of the rotation.                                                                           ##############################################
